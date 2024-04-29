@@ -1,0 +1,11 @@
+[Unit]
+Description=Register to Ansible Automation Platform
+After=network.target
+ConditionPathExists=!/var/tmp/aap-registered
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'while true; do /usr/bin/ansible-auto-registration.sh && /usr/bin/touch /var/tmp/aap-registered && break; done'
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,84 @@
+---
+service_info:
+  initial_user: 
+    username: admin
+    sshkeys:
+    - "<SSH PUB KEY>"
+  files:
+  - path: /etc/systemd/system/apply-update.service
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/apply-update.service
+
+  - path:  /etc/systemd/system/apply-update.timer
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/apply-update.timer
+
+  - path: /etc/rpm-ostreed.conf
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/rpm-ostreed.conf
+
+  - path: /var/home/admin/change-hostname.sh
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/change-hostname.sh
+
+  - path: /var/home/admin/register-system.sh
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/register-system.sh
+# ANSIBLE LOGIC
+  - path: /etc/systemd/system/ansible-auto-registration.service
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/ansible-auto-registration.service
+
+  - path:  /usr/bin/ansible-auto-registration.sh
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/ansible-auto-registration.sh
+# ACM LOGIC
+  - path: /etc/systemd/system/acm-auto-registration.service
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/acm-auto-registration.service
+
+  - path:  /usr/bin/acm-auto-registration.sh
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/acm-auto-registration.sh
+
+
+
+  commands: 
+  - command: systemctl
+    args:
+    - daemon-reload
+  - command: bash
+    args:
+    - /var/home/admin/change-hostname.sh
+  - command: sed
+    args:
+    - -i
+    - 's/^#core_collect/core_collect/g'
+    - /etc/insights-client/insights-client.conf
+  - command: systemctl
+    args:
+    - enable 
+    - --now
+    - rpm-ostreed-automatic.timer 
+    - apply-update.timer
+    - cockpit.socket
+    - ansible-auto-registration.service
+    - acm-auto-registration.service
+  - command: bash
+    args:
+    - /var/home/admin/register-system.sh
+    - <RED HAT USER>
+    - <RED HAT PASSWORD>
+  diskencryption_clevis: 
+  - disk_label: /dev/vda4
+    binding:
+      pin: tpm2
+      config: "{}"
+    reencrypt: true
+  after_onboarding_reboot: true
+bind: "0.0.0.0:8083"
+service_info_auth_token: <SERVICE TOKEN>
+admin_auth_token: <ADMIN TOKEN>
+device_specific_store_driver:
+  Directory:
+    path: /etc/fdo/aio/stores/serviceinfo_api_devices

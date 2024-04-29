@@ -1,0 +1,19 @@
+---
+
+- name: Hello world testing playbook
+  hosts:
+    - all
+  gather_facts: false
+  pre_tasks:
+    - name: Print out message
+      ansible.builtin.debug:
+        msg: "Hello admin user, I am a self aware playbook that will test connectivity to your edge nodes."
+  tasks:
+    - name: Test connectivity
+      block:
+        - name: Run the setup module (hopefully successfully)
+          ansible.builtin.setup:
+      rescue:
+        - name: Let the humans know I failed
+          ansible.builtin.debug:
+            msg: "Hello admin user, I have unforunately failed to contact your edge nodes. Please let the instructor know."

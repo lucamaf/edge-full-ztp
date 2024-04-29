@@ -1,0 +1,24 @@
+controller_templates:
+  - name: Test Device Connectivity
+    organization: "<YOUR_ORG>"
+    inventory: Edge Devices
+    project: <YOUR_PROJECT>
+    playbook: playbooks/hello-world.yml
+    credentials:
+      - Device Credentials
+  - name: Initial Device Configuration
+    organization: "<YOUR_ORG>"
+    inventory: Edge Devices
+    project: <YOUR_PROJECT>
+    playbook: playbooks/initial-configuration.yml
+    credentials:
+      - Device Credentials
+  - name: Create Host in Controller Inventory
+    organization: "<YOUR_ORG>"
+    inventory: Local Actions
+    project: <YOUR_PROJECT>
+    playbook: playbooks/manage-hosts-in-controller.yml
+    credentials:
+      - Controller API Credentials
+    ask_variables_on_launch: true
+    become_enabled: true

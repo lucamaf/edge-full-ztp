@@ -1,0 +1,12 @@
+name = "blueprint-fdo"
+description = "Blueprint for FDO to generate installer ISO"
+version = "0.0.1"
+packages = []
+modules = []
+groups = []
+distro = ""
+[customizations]
+installation_device = "/dev/<DISK_DEVICE>"
+[customizations.fdo]
+manufacturing_server_url = "<FDO_MANUFACTURING_URL>"
+diun_pub_key_insecure = "true"

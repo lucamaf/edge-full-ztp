@@ -1,0 +1,201 @@
+name = "microshift-kvm-insights"
+description = "Deploy Microshift, KVM and include Insights"
+
+version = "0.0.1"
+modules = [ ]
+groups = [ ]
+
+
+################## base packages
+
+[[packages]]
+name = "insights-client"
+version = "*"
+
+[[packages]]
+name = "rhc"
+version = "*"
+
+[[packages]]
+name = "subscription-manager"
+version = "*"
+
+[[packages]]
+name = "redhat-release"
+version = "*"
+
+
+################## COCKPIT
+
+[[packages]]
+name = "cockpit"
+version = "*"
+
+[[packages]]
+name = "cockpit-machines"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-podman"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-system"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-bridge"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-pcp"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-composer"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-storaged"
+version = "*"
+
+
+[[packages]]
+name = "cockpit-session-recording"
+version = "*"
+
+
+################## KVM 
+
+[[packages]]
+name = "virt-install"
+version = "*"
+
+[[packages]]
+name = "libvirt-daemon-config-network"
+version = "*"
+
+[[packages]]
+name = "libvirt-daemon-kvm"
+version = "*"
+
+[[packages]]
+name = "qemu-kvm"
+version = "*"
+
+[[packages]]
+name = "libguestfs-tools"
+version = "*"
+
+[[packages]]
+name = "python3-libguestfs"
+version = "*"
+
+[[packages]]
+name = "virt-top"
+version = "*"
+
+################## MICROSHIFT 4.15.9
+
+[[packages]]
+name = "microshift"
+version = "4.15.9"
+
+[[packages]]
+name = "microshift-greenboot"
+version = "4.15.9"
+
+[[packages]]
+name = "microshift-networking"
+version = "4.15.9"
+
+[[packages]]
+name = "microshift-selinux"
+version = "4.15.9"
+
+################### Customizations
+
+[customizations.services]
+enabled = ["microshift","cockpit","insights-client"]
+
+
+[customizations.firewall]
+ports = ["9090:tcp","22:tcp", "80:tcp", "443:tcp", "5353:udp", "6443:tcp", "30000-32767:tcp", "30000-32767:udp"]
+
+[customizations.firewall.services]
+enabled = ["mdns", "ssh", "http", "https"]
+
+[[customizations.firewall.zones]]
+name = "trusted"
+sources = ["10.42.0.0/16", "169.254.169.1"]
+
+[[customizations.sshkey]]
+user = "root"
+key = "<SSH PUB KEY>"
+
+
+[[customizations.user]]
+name = "admin"
+description = "Admin user"
+password = '<ADMIN PASSW>'
+key = "<SSH PUB KEY>"
+home = "/home/admin/"
+shell = "/usr/bin/bash"
+groups = ["users", "wheel"]
+
+################### CONTAINERS
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:65d1b975add325cdaf1dc47b14b4c667b7dc04ef641759796463ebf94beef895"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:a427a976e0ffe1631a6076da2478ddf65be14e58ef4057b972f7dd404ced5a5a"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9b4017777fd97bb4f66a1c939014b95a440bb7b37e543aba2add65a548c68c6c"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:5dab8d817f2e8e453e019ac89edaae24f948e9d4181df3de31f7d7c89b614de3"
+
+[[containers]]
+source = "registry.access.redhat.com/ubi8/openssl@sha256:9e743d947be073808f7f1750a791a3dbd81e694e37161e8c6c6057c2c342d671"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:53d989e3762a06cb2f0e9500f868c58ec270a9cd25e177340a32c46029781192"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ac97982e845413b2b7377171d1b4c85d2b2cfda174e8251e3049d4843cea40e1"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:b3d7a5c1c9e71fa441d1ec3ad6acdae0813d61d694e75d2790e56528a27c8e21"
+
+[[containers]]
+source = "registry.redhat.io/lvms4/topolvm-rhel9@sha256:ce0c78c2867fb0b73c4911ae6afd5aaf9a413480cfcf4f31f46f2387c3df97e0"
+
+[[containers]]
+source = "registry.redhat.io/openshift4/ose-csi-node-driver-registrar@sha256:95691c21198e20d11777d592806fa00c018c17443d9b3aee853891dac6090470"
+
+[[containers]]
+source = "registry.redhat.io/openshift4/ose-csi-livenessprobe@sha256:98ad03919da81c910aaa8a4f12fcae3048f2119735aeb7ca5271f7c16cf5e4e6"
+
+[[containers]]
+source = "registry.redhat.io/openshift4/ose-csi-external-resizer@sha256:94f4a9ad37891cfbf58ca7db58000e703ff4d9d7a7b207d50ec844c1610e2111"
+
+[[containers]]
+source = "registry.redhat.io/openshift4/ose-csi-external-provisioner@sha256:76a5646d4b8406ae9065a1605644ec641acc97aa471ebae744e8e06487cec765"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:d7dd7fb9ca85dba526e467cfe4304ef6aa4acaff2d14242e7c820f0817bac227"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:f878d21ee53e6debf22f3170afa08f33e0d5f13d106386ef1966628421eb927c"
+
+[[containers]]
+source = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:8bcb3b1db36f75055f6a33135bf58752b863324fb30fe2b8275eaef2d7c4771f"
+

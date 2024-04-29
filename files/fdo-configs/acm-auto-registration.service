@@ -1,0 +1,12 @@
+[Unit]
+Description=Register to Advanced Cluster Manager
+After=microshift.service
+Requires=microshift.service
+ConditionPathExists=!/var/tmp/acm-registered
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'while true; do /usr/bin/acm-auto-registration.sh && /usr/bin/touch /var/tmp/acm-registered && break; done'
+
+[Install]
+WantedBy=default.target
