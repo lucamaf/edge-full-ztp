@@ -444,7 +444,8 @@ Recap of the steps:
 3. Copy and modify the FDO scripts to the *Image Builder* [here](#fdo-manual-setup). Change the base FDO config with the one just modified and restart the FDO server(s) (if you used the AIO approach the file shoulbd be under `/etc/fdo/aio/configs/`). Restart the service with `sudo systemctl restart fdo-aio`.  
 4. Modify and import the final image blueprint [here](#importing-the-rhel-for-edge-blueprint-in-image-builder). Remember to change also the variables in the ACM registration [script](files/fdo-configs/acm-auto-registration.sh#L16). The `HOST` URL can be found under the *multicluster-engine* project.  
 5. Create OSTree image [here](#creating-a-rhel-for-edge-image)
-6. 
+6. Download and publish the image commit [here](#downloading-the-rhel-for-edge-image). For the [publishing](#publishing-the-rhel-for-edge-container-commit) step remember to use the Dockerfile provided for the build and the created `nginx.conf`file.  
+7. 
 
 
 
