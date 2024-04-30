@@ -15,7 +15,11 @@ cp /var/lib/microshift/resources/kubeadmin/kubeconfig ~/.kube/config
 ##### Variables
 ACCESS_TOKEN=<YOUR_ACM_TOKEN>
 HOST=<YOUR_ACM_HOST>
+
+# copy pull secret
+cp /var/home/admin/pull-secret.json /etc/crio/openshift-pull-secret
 chmod 600 /etc/crio/openshift-pull-secret
+
 
 # register MicroShift cluster to ACM hub
 curl -k -H "Authorization: Bearer $ACCESS_TOKEN" https://$HOST/agent-registration/crds/v1 | oc --kubeconfig /var/lib/microshift/resources/kubeadmin/kubeconfig apply -f -

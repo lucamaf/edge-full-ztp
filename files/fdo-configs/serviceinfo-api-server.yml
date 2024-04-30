@@ -41,6 +41,9 @@ service_info:
     permissions: 644
     source_path: <PATH FILES>/fdo-configs/acm-auto-registration.sh
 
+  - path: /var/home/admin/pull-secret.json
+    permissions: 644
+    source_path: <PATH FILES>/fdo-configs/pull-secret.json
 
 
   commands: 

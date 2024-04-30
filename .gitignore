@@ -161,3 +161,4 @@ cython_debug/
 
 # Other
 .camel-jbang
+pull-secret.json

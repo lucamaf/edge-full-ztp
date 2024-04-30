@@ -372,7 +372,7 @@ All objects that **AAP** and **EDA** will use need to be versioned in a reposito
 16. Create the *Workflow template* on **AAP** following  [this](files/aap/workflows/controller-workflow.yml). Then create the template with the wizard. You should have in the end a flow similar to the one in the picture.  
 17. You can test if the flow works by manually activating the **EDA** endpoint with a command similar to this one:
 ```
-JSON="{\                                                                                               
+JSON="{\                    
 \"ip_address\": \"192.168.1.111\", \
 \"mac_address\": \"aabbccddeeff\" \
 }"
@@ -399,10 +399,10 @@ You can find the example *Blueprint* [here](files/ostree-image/blueprint-microsh
 We would now merge the two blueprints in a single file that you can find [here](files/ostree-image/blueprint-final.toml). We will call it `microshift-kvm-insights`.  
 
 You also need to add the service to let *Microshift* register itself to **ACM**. The documentation for this step can be found [here](https://access.redhat.com/documentation/en-us/red_hat_advanced_cluster_management_for_kubernetes/2.7/html-single/apis/index#rhacm-docs_apis_cluster_jsoncreatecluster).  
-You have to include 2 files in the `serviceinfo-api-server`config:
+You have to include 3 new files in the `serviceinfo-api-server`config:
 1. [script](files/fdo-configs/acm.auto-registration.sh) to register microshift to acm: make sure to change the variable `<YOUR_ACM_TOKEN>` with a generated `OpenShift` access token with cluster-admin rights. Change also the `<YOUR_ACM_HOST>` variable with yours. 
-2. associated system [service](files/fdo-configs/acm-auto-registration.service):   
-You would also need to add more section to the [initial config](files/fdo-configs/serviceinfo-api-server.yml) to copy these scripts as well to the OS directory.  
+2. associated system [service](files/fdo-configs/acm-auto-registration.service)  
+3. The `pull-secret`: you can download your installation pull secret from the [Red Hat Hybrid Cloud Console](https://console.redhat.com/), you can see which filename to use [here](files/fdo-configs/serviceinfo-api-server.yml#L44). This pull secret allows you to authenticate with the Red Hat container registries that serve the container images used by Red Hat build of MicroShift.  
 
 
 
@@ -442,7 +442,7 @@ Recap of the steps:
 1. Install *Image Builder* [here](#installing-image-builder)
 2. Enable additional repo [here](#addendum-to-fdo-manual-setup-1)
 3. Copy and modify the FDO scripts to the *Image Builder* [here](#fdo-manual-setup). Change the base FDO config with the one just modified and restart the FDO server(s) (if you used the AIO approach the file shoulbd be under `/etc/fdo/aio/configs/`). Restart the service with `sudo systemctl restart fdo-aio`.  
-4. Modify and import the final image blueprint [here](#importing-the-rhel-for-edge-blueprint-in-image-builder)
+4. Modify and import the final image blueprint [here](#importing-the-rhel-for-edge-blueprint-in-image-builder). Remember to change also the variables in the ACM registration [script](files/fdo-configs/acm-auto-registration.sh#L16). The `HOST` URL can be found under the *multicluster-engine* project.  
 5. Create OSTree image [here](#creating-a-rhel-for-edge-image)
 6. 
 
