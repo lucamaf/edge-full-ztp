@@ -18,7 +18,7 @@ else
     echo "INFO: Generating new user password file ${PASSWORD_FILE}"
     head -c8 < <(< /dev/urandom tr -dc _A-Z-a-z-0-9) > "${PASSWORD_FILE}"
 fi
-cat "/home/luca/microshift-demos/kickstart.ks.tmpl" | \
+cat "<USER_DIR>/kickstart.ks.tmpl" | \
     OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
     OSTREE_REF=${OSTREE_REF} \
     USER_NAME="microshift" \

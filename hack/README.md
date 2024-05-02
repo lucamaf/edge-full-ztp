@@ -54,7 +54,10 @@ At this point you should have an ISO file (downloaded in the Image Builder) that
 
 To add your Username and other variables at installation time, run the kickstart [script](kickstarts/embed-ks) for preparing and embedding a kickstart in the ISO you just generated.  
 
-The scripts expects the download ISO to be called `installer-0.0.0-installer.iso` and make sure to change in the script the location of the published repo to yours `http://<IMAGE_BUILDER_IP>:<IMAGE_PUBLISH_PORT>` and have the `pull-secret` in $HOME. You can download your installation pull secret from the [Red Hat Hybrid Cloud Console](https://console.redhat.com/). This pull secret allows you to authenticate with the Red Hat container registries that serve the container images used by Red Hat build of MicroShift.  
+The scripts expects the download ISO to be called `installer-0.0.0-installer.iso`.  
+Make sure to change in the script the location of the published repo to yours `http://<IMAGE_BUILDER_IP>:<IMAGE_PUBLISH_PORT>`.  
+Have the `pull-secret` in $HOME. You can download your installation pull secret from the [Red Hat Hybrid Cloud Console](https://console.redhat.com/). This pull secret allows you to authenticate with the Red Hat container registries that serve the container images used by Red Hat build of MicroShift.  
+Change the `<USER_DIR>` to the directory where the kickstart template is located.  
 Run the script like this:  
 ` ./embed-ks`
 
