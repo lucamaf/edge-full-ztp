@@ -287,7 +287,7 @@ And check that the new Blueprint (the name that we used is blueprint-fdo) is rea
 
 `sudo composer-cli blueprints list`
 
-Recall the <IMAGE_BUILDER_IP> (which should be the same as the **MS** IP) and the <IMAGE_PUBLISH_PORT> (which should be 8090 by default), but you will also need to include the path (URL) to the right content which depends on the RHEL release and architecture used to generate the OSTRee image.
+Recall the <IMAGE_BUILDER_IP> (which should be the same as the **MS** IP) and the <IMAGE_PUBLISH_PORT> (which should be 8090 if you followed these instructions), but you will also need to include the path (URL) to the right content which depends on the RHEL release and architecture used to generate the OSTRee image.
 
 The release and the architecture should match with the ones of the Image Builder, so you can get those values running these commands on the **Management System**:
 ```
@@ -432,7 +432,8 @@ $ sudo composer-cli sources info rhocp-4.15
 $ sudo composer-cli sources add fast-datapath.toml
 $ sudo composer-cli sources info fast-datapath
 ```
-
+! microshift 4.12 https://access.redhat.com/documentation/en-us/red_hat_build_of_microshift/4.12/html/installing/microshift-embed-in-rpm-ostree#preparing-for-image-building_microshift-embed-in-rpm-ostree -> not working
+! this one: https://github.com/redhat-et/microshift-demos/tree/main
 
 ## DAY 1 - EXECUTION - Device onboarding and installation
 For FDO onbaording to work, the *Edge Device* (**ED**) has to have a Trusted Platform Module (TPM) device to encrypt the keys for the onboarding process.
@@ -442,10 +443,26 @@ Recap of the steps:
 1. Install *Image Builder* [here](#installing-image-builder)
 2. Enable additional repo [here](#addendum-to-fdo-manual-setup-1)
 3. Copy and modify the FDO scripts to the *Image Builder* [here](#fdo-manual-setup). Change the base FDO config with the one just modified and restart the FDO server(s) (if you used the AIO approach the file shoulbd be under `/etc/fdo/aio/configs/`). Restart the service with `sudo systemctl restart fdo-aio`.  
-4. Modify and import the final image blueprint [here](#importing-the-rhel-for-edge-blueprint-in-image-builder). Remember to change also the variables in the ACM registration [script](files/fdo-configs/acm-auto-registration.sh#L16). The `HOST` URL can be found under the *multicluster-engine* project.  
+4. Modify and import the final image blueprint [here](#importing-the-rhel-for-edge-blueprint-in-image-builder). Remember to change also the variables in the ACM and Ansible registration [script](files/fdo-configs/acm-auto-registration.sh#L16) and [script](files/fdo-configs/ansible-auto-registration.sh#L19). The `HOST` URL can be found under the *multicluster-engine* project.  
 5. Create OSTree image [here](#creating-a-rhel-for-edge-image)
 6. Download and publish the image commit [here](#downloading-the-rhel-for-edge-image). For the [publishing](#publishing-the-rhel-for-edge-container-commit) step remember to use the Dockerfile provided for the build and the created `nginx.conf`file.  
-7. 
+7. After modifying the [blueprint](#creating-blueprint-for-rhel-for-edge-installer-image) for the installer image push it to the *Image Builder*  
+8. Create the OSTree install ISO [here](#create-a-rhel-for-edge-installer-image). 
+9. Download the generated ISO file [here](#download-the-rhel-for-edge-installer-image)  
+10. Create a VM (or use a physical machine) that will act as **Edge Device**. Use the FDO enabled RHEL OSTree ISO image to install the **ED**. Review the onboarding process and completion.  
+
+As reference for the VM you can use this command, (remember to add a virtual or passthorugh TPM):  
+```
+virt-install --name=edge-device \
+--vcpus=2 \
+--memory=1536 \
+--cdrom=<PATH TO RHEL OSTREE ISO> \
+--disk size=20 \
+--os-variant=rhel9.1 \
+--boot uefi \
+--tpm backend.type=emulator,backend.version=2.0,model=tpm-crb
+```
+Make sure you are booting the **Edge Device** as UEFI and not BIOS.  
 
 
 

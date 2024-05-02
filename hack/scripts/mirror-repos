@@ -1,0 +1,129 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
+
+MICROSHIFT_VERSION="${MICROSHIFT_VERSION:-4.12}"
+MICROSHIFT_DEPS_VERSION="${MICROSHIFT_DEPS_VERSION:-${MICROSHIFT_VERSION}}"
+MICROSHIFT_DEV_PREVIEW="${MICROSHIFT_DEV_PREVIEW:-false}"
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+MIRROR_DIR="/var/repos/microshift-local"
+MICROSHIFT_RPM_DIR="${REPOROOT}/builds/rpms"
+
+DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Invalid OS version string (have: ${DISTRO_VERSION})"
+DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
+DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
+
+
+# Verify we are on a supported distro and configuration.
+case "${DISTRO}-${DISTRO_VERSION_MAJOR}" in
+    rhel-8)
+        [ "${DISTRO_VERSION_MINOR}" -lt 7 ] && fatal "RHEL8 version must be >= 8.7 (have: ${DISTRO_VERSION})."
+        ;;
+
+    rhel-9)
+        [ "${DISTRO_VERSION_MINOR}" -lt 1 ] && fatal "RHEL9 version must be >= 9.1 (have: ${DISTRO_VERSION})."
+
+        # On RHEL9, run only if MICROSHIFT_DEV_PREVIEW has been explicitly requested.
+        [ "${MICROSHIFT_DEV_PREVIEW}" != true ] && fatal "On RHEL9, please use the dev preview repos by running: MICROSHIFT_DEV_PREVIEW=true $0"
+        ;;
+
+    *)
+        fatal "\"${DISTRO}\" is not a supported distribution."
+        ;;
+esac
+
+# Create an empty mirror repo dir.
+sudo rm -rf "${MIRROR_DIR}" 2>/dev/null && sudo mkdir -p "${MIRROR_DIR}"
+
+# Configure the right repos for this distro, version, and release channel
+case "${DISTRO}-${DISTRO_VERSION_MAJOR}" in
+    rhel-8|rhel-9)
+        if [ "${MICROSHIFT_DEV_PREVIEW}" = true ]; then
+            # Import Red Hat public keys to allow RPM GPG check (not necessary if a system is registered)
+            if ! sudo subscription-manager status >& /dev/null ; then
+                sudo rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-*
+            fi
+
+            # Need to install both the latest MicroShift dev preview builds as well as the beta repo of dependencies
+            # Use el8 RPMs even on a RHEL9 host until dedicated el9 builds become avaialble
+            microshift_repo="microshift-${MICROSHIFT_VERSION}-dev-preview-for-rhel-8-$(uname -i)-rpms"
+            rhocp_repo="rhocp-${MICROSHIFT_DEPS_VERSION}-beta-for-rhel-8-$(uname -i)-rpms"
+            fastdatapath_repo="fast-datapath-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            title "Configuring ${microshift_repo}, ${rhocp_repo}, and ${fastdatapath_repo} repos"
+            sudo tee /etc/yum.repos.d/microshift-dev-preview.repo > /dev/null <<EOF
+[${microshift_repo}]
+name=MicroShift ${MICROSHIFT_VERSION} Dev Preview $(uname -i) RPMs
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/microshift/ocp-dev-preview/latest-${MICROSHIFT_VERSION}/el8/os/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=0
+
+[${rhocp_repo}]
+name=Red Hat OpenShift Container Platform ${MICROSHIFT_DEPS_VERSION} BETA for RHEL 8 $(uname -i) (RPMs)
+baseurl=https://mirror.openshift.com/pub/openshift-v4/\$basearch/dependencies/rpms/${MICROSHIFT_DEPS_VERSION}-el8-beta/
+enabled=1
+gpgcheck=1
+skip_if_unavailable=0
+EOF
+            sudo subscription-manager repos \
+                --enable "${fastdatapath_repo}"
+            repos="${microshift_repo} ${rhocp_repo} ${fastdatapath_repo}"
+        else
+            rhocp_repo="rhocp-${MICROSHIFT_VERSION}-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            fastdatapath_repo="fast-datapath-for-rhel-${DISTRO_VERSION_MAJOR}-$(uname -i)-rpms"
+            title "Configuring ${rhocp_repo} and ${fastdatapath_repo} repos"
+            sudo subscription-manager repos \
+                --enable "${rhocp_repo}" \
+                --enable "${fastdatapath_repo}"
+            sudo rm -f /etc/yum.repos.d/microshift-dev-preview.repo
+            repos="${rhocp_repo} ${fastdatapath_repo}"
+        fi
+        ;;
+
+    *)
+        fatal "\"${DISTRO}\" is not a supported distribution."
+        ;;
+esac
+
+# Sync RPMs to mirror repo
+title "Downloading RPMs into mirror repo"
+for r in ${repos}; do
+    sudo reposync --arch="$(uname -i)" --arch=noarch --gpgcheck --newest-only \
+        --download-path "${MIRROR_DIR}" --repo="${r}"
+done
+
+# Remove coreos packages to avoid conflicts
+sudo find "${MIRROR_DIR}" -name \*coreos\* -exec rm -f {} \;
+
+# If we have MicroShift RPMs built from source, replace the RPMs in the mirror repo with these.
+if stat -t "${MICROSHIFT_RPM_DIR}"/microshift*.rpm >/dev/null 2>&1; then
+    title "Copying MicroShift RPMs from ${MICROSHIFT_RPM_DIR} into mirror repo."
+    sudo find "${MIRROR_DIR}" -name \*microshift\* -exec rm -f {} \;
+    sudo cp "${MICROSHIFT_RPM_DIR}"/microshift*.rpm "${MIRROR_DIR}/${microshift_repo}"
+fi
+
+# Create the repo.
+title "Creating the local MicroShift RPM repo"
+sudo createrepo "${MIRROR_DIR}" >/dev/null
+
+# Add the repo as Image Builder source.
+title "Adding the local MicroShift RPM repo as Image Builder source"
+sudo tee "${MIRROR_DIR}/source_microshift-local.toml" > /dev/null <<EOF
+id = "microshift-local"
+name = "Local MicroShift repo"
+type = "yum-baseurl"
+url = "file://${MIRROR_DIR}/"
+check_gpg = false
+check_ssl = false
+system = false
+EOF
+
+sudo composer-cli sources delete "microshift-local" 2>/dev/null || true
+sudo composer-cli sources add "${MIRROR_DIR}/source_microshift-local.toml"

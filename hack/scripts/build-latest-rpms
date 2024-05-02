@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+MICROSHIFT_RPM_DIR="${REPOROOT}/builds/rpms"
+
+
+title "Cloning MicroShift repo"
+git clone https://github.com/openshift/microshift.git
+
+title "Building MicroShift RPMs"
+pushd microshift &>/dev/null
+make rpm
+popd &>/dev/null
+
+title "Copying RPMs to ${RPMDIR}"
+mkdir -p "${MICROSHIFT_RPM_DIR}"
+cp _output/rpmbuild/RPMS/*/*.rpm "${MICROSHIFT_RPM_DIR}"
+
+title "Cleaning up"
+rm -rf microshift

@@ -22,5 +22,5 @@ chmod 600 /etc/crio/openshift-pull-secret
 
 
 # register MicroShift cluster to ACM hub
-curl -k -H "Authorization: Bearer $ACCESS_TOKEN" https://$HOST/agent-registration/crds/v1 | oc --kubeconfig /var/lib/microshift/resources/kubeadmin/kubeconfig apply -f -
-curl -k -H "Authorization: Bearer $ACCESS_TOKEN" https://$HOST/agent-registration/manifests/microshift-$(tr -dc a-z0-9 </dev/urandom | head -c 5 ; echo '') | oc --kubeconfig /var/lib/microshift/resources/kubeadmin/kubeconfig apply -f -
+curl -H "Authorization: Bearer $ACCESS_TOKEN" https://$HOST/agent-registration/crds/v1 | oc --kubeconfig /var/lib/microshift/resources/kubeadmin/kubeconfig apply -f -
+curl -H "Authorization: Bearer $ACCESS_TOKEN" https://$HOST/agent-registration/manifests/microshift-$(tr -dc a-z0-9 </dev/urandom | head -c 5 ; echo '') | oc --kubeconfig /var/lib/microshift/resources/kubeadmin/kubeconfig apply -f -

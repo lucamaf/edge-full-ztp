@@ -1,0 +1,58 @@
+name = "microshift-only"
+
+description = ""
+version = "0.0.4"
+modules = []
+groups = []
+
+
+# MicroShift and oc client
+
+[[packages]]
+name = "microshift"
+version = "*"
+
+[[packages]]
+name = "openshift-clients"
+version = "*"
+
+
+# configuration management
+
+[[packages]]
+name = "git"
+version = "*"
+
+
+# troubleshooting tools
+
+[[packages]]
+name = "iputils"
+version = "*"
+
+[[packages]]
+name = "bind-utils"
+version = "*"
+
+[[packages]]
+name = "net-tools"
+version = "*"
+
+[[packages]]
+name = "iotop"
+version = "*"
+
+
+# other
+
+[[packages]]
+name = "redhat-release"
+version = "*"
+
+
+# customizations
+
+[customizations]
+
+[customizations.services]
+enabled = ["microshift"]

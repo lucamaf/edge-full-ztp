@@ -1,0 +1,242 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+title() { echo -e "\E[34m# $1\E[00m"; }
+fatal() { echo -e "\E[31mError: $1\E[00m"; exit 1; }
+
+trap 'fatal "command on line ${LINENO} exited with code $?: $BASH_COMMAND"' ERR
+
+
+REPOROOT="$(git rev-parse --show-toplevel)"
+DEMOS=$(cd "${REPOROOT}/demos"; find * -maxdepth 1 -type d | xargs)
+
+DISTRO=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+DISTRO_VERSION=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+[[ "$DISTRO_VERSION" =~ ^([0-9]{1,})\.([0-9]{1,})$ ]] || fatal "Invalid OS version string (have: ${DISTRO_VERSION})"
+DISTRO_VERSION_MAJOR=${BASH_REMATCH[1]}
+DISTRO_VERSION_MINOR=${BASH_REMATCH[2]}
+
+OSTREE_REF="${DISTRO}/${DISTRO_VERSION_MAJOR}/$(uname -i)/edge"
+
+
+usage() {
+    local error_message="$1"
+
+    echo "Usage: $(basename "$0") <demoname>"
+    [ -n "$error_message" ] && fatal "${error_message}"
+    exit 0
+}
+
+if [[ $# -ne 1 || " ${DEMOS} " != *"$1"* ]]; then
+    usage "Must specify demo name (one of [${DEMOS}])."
+fi
+
+
+DEMONAME=$1
+DEMODIR="${REPOROOT}/demos/${DEMONAME}"
+BUILDDIR="${REPOROOT}/builds/${DEMONAME}"
+
+PRIMARY_IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f 7)
+
+SSH_PUBLIC_KEY_FILE=${SSH_PUBLIC_KEY_FILE:-${BUILDDIR}/id_demo.pub}
+PASSWORD_FILE=${PASSWORD_FILE:-${BUILDDIR}/password}
+GITOPS_REPO=${GITOPS_REPO:-https://github.com/redhat-et/microshift-config}
+OSTREE_SERVER_URL=${OSTREE_SERVER_URL:-http://${PRIMARY_IP}:8080}
+OCP_PULL_SECRET_FILE=${OCP_PULL_SECRET_FILE:-$HOME/.pull-secret.json}
+[ ! -s "${OCP_PULL_SECRET_FILE}" ] && usage "Empty or missing pull secret file ${OCP_PULL_SECRET_FILE}"
+
+
+# Adds a source repo using the standard osbuild-composer mechanism (.toml file).
+add_repo() {
+    local source=$1
+
+    id="$(grep -Po '^\s?id\s?=\s?"\K[^"]+' "${source}" | head -n 1)"
+    title "Adding source '${id}' to builder"
+
+    # This is a workaround for a current osbuild-composer limitation which is that
+    # it does not correctly handle baseurls with yum variables like $basearch,
+    # so we need to render these vars beforehand
+    rendered_source=${BUILDDIR}/$(basename "${source}")
+    sed \
+        -e "s|\$basearch|$(uname -i)|g" \
+        -e "s|\$releasever|${DISTRO_VERSION_MAJOR}|g" \
+        "${source}" > "${rendered_source}"
+
+    sudo composer-cli sources delete "${id}" 2>/dev/null || true
+    sudo composer-cli sources add "${rendered_source}"
+}
+
+load_blueprint() {
+    local name=$1
+    local file=$2
+
+    sudo composer-cli blueprints delete "${name}" 2>/dev/null || true
+    sudo composer-cli blueprints push "${file}"
+    sudo composer-cli blueprints depsolve "${name}"
+}
+
+waitfor_image() {
+    local uuid=$1
+
+    local tstart=$(date +%s)
+    echo "$(date +'%Y-%m-%d %H:%M:%S') STARTED"
+
+    local status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
+    while [ "${status}" =  RUNNING ] || [ "${status}" =  WAITING ]; do
+        sleep 10
+        status=$(sudo composer-cli compose info --json "${uuid}" | jq -r '.body.queue_status')
+        echo -en "$(date +'%Y-%m-%d %H:%M:%S') ${status}\r"
+    done
+
+    local tend=$(date +%s)
+    echo "$(date +'%Y-%m-%d %H:%M:%S') ${status} - elapsed $(( (tend - tstart) / 60 )) minutes"
+
+    if [ "${status}" = FAILED ]; then
+        download_image "${uuid}" 1
+        echo "Blueprint build has failed. For more information, review the downloaded logs"
+        exit 1
+    fi
+}
+
+download_image() {
+    local uuid=$1
+
+    sudo composer-cli compose logs "${uuid}"
+    sudo composer-cli compose metadata "${uuid}"
+    sudo composer-cli compose image "${uuid}"
+}
+
+build_image() {
+    local blueprint_file=$1
+    local blueprint=$2
+    local version=$3
+    local image_type=$4
+    local parent_blueprint=$5
+    local parent_version=$6
+
+    title "Loading ${blueprint} blueprint v${version}"
+    load_blueprint "${blueprint}" "${blueprint_file}"
+
+    if [ -n "$parent_version" ]; then
+        title "Serving ${parent_blueprint} v${parent_version} container locally"
+        sudo podman rm -f ostree-server 2>/dev/null || true
+        sudo podman rmi -f "localhost/${parent_blueprint}:${parent_version}" 2>/dev/null || true
+        imageid=$(cat "./${parent_blueprint}-${parent_version}-container.tar" | sudo podman load | grep -o -P '(?<=sha256[@:])[a-z0-9]*')
+        sudo podman tag "${imageid}" "localhost/${parent_blueprint}:${parent_version}"
+        sudo podman run -d --name=ostree-server -p 8080:8080 "localhost/${parent_blueprint}:${parent_version}"
+
+        title "Building ${image_type} for ${blueprint} v${version}, parent ${parent_blueprint} v${parent_version}"
+        result=$(sudo composer-cli compose start-ostree --json --ref "${OSTREE_REF}" --url http://localhost:8080/repo/ "${blueprint}" "${image_type}") || true
+        buildid=$(jq -r '.body.build_id' <<< "${result}")
+        if [ "${buildid}" = "null" ]; then
+            fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
+        fi
+    else
+        title "Building ${image_type} for ${blueprint} v${version}"
+        result=$(sudo composer-cli compose start-ostree --json --ref "${OSTREE_REF}" "${blueprint}" "${image_type}") || true
+        buildid=$(jq -r '.body.build_id' <<< "${result}")
+        if [ "${buildid}" = "null" ]; then
+            fatal "Error starting compose for ${blueprint}: $(jq -r '.body.errors' <<< "${result}")"
+        fi
+    fi
+
+    waitfor_image "${buildid}"
+    download_image "${buildid}"
+    sudo chown "$(whoami)." "${buildid}"*.{tar,iso} 2>/dev/null || true
+    rename "${buildid}" "${blueprint}-${version}" "${buildid}"*.{tar,iso} 2>/dev/null || true
+}
+
+
+# Verify the MicroShift RPMs have been mirrored to disk
+result=$(sudo composer-cli sources list --json | jq '.body.sources | index("microshift-local")')
+[ "${result}" = null ] && fatal "Did not find local mirror of MicroShift RPMs. Did you run ./scripts/mirror-repos ?"
+
+# Copy the pull secret to osbuild worker's config dir (in case containers are embedded into blueprint)
+sudo mkdir -p /etc/osbuild-worker
+sudo cp -- "${OCP_PULL_SECRET_FILE}" /etc/osbuild-worker/pull-secret.json
+sudo tee /etc/osbuild-worker/osbuild-worker.toml &>/dev/null <<EOF
+[containers]
+auth_file_path = "/etc/osbuild-worker/pull-secret.json"
+EOF
+
+# Change to the demo's build directory
+mkdir -p "${BUILDDIR}"
+pushd "${BUILDDIR}" &>/dev/null
+
+# Add additional repos required by the specific demo
+sources=$(shopt -s nullglob; echo "${DEMODIR}"/source_*.toml)
+for repo in ${sources}; do
+    add_repo "${repo}"
+done
+
+# Build images from blueprints in alphabetical order of file names.
+# Assumes files are named following the pattern "blueprint_${SOME_VERSION}_${CPU_ARCH}.toml",
+# or - if no such pattern exists - instead "blueprint_${SOME_VERSION}.toml"
+# Assumes blueprint N is the parent of blueprint N+1.
+parent_version=""
+root_parent_version=""
+blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*_$(uname -i).toml)
+if [ -z "${blueprints}" ]; then
+    blueprints=$(shopt -s nullglob; echo "${DEMODIR}"/blueprint_*.toml)
+fi
+if [ -z "${blueprints}" ]; then
+    fatal "${DEMODIR} does not contain a blueprint."
+fi
+for blueprint in ${blueprints}; do
+    version="$(echo "${blueprint}" | grep -Po '_v\K(.*)(?=\.toml)')"
+    if [ ! -f "${BUILDDIR}/${DEMONAME}-${version}-container.tar" ]; then
+        if [ -z "${parent_version}" ]; then
+            build_image "${blueprint}" "${DEMONAME}" "${version}" edge-container
+        else
+            build_image "${blueprint}" "${DEMONAME}" "${version}" edge-container "${DEMONAME}" "${parent_version}"
+        fi
+    else
+        title "Skipping build of ${DEMONAME} v${version}"
+    fi
+    parent_version="${version}"
+    [ -z "${root_parent_version}" ] && root_parent_version="${parent_version}"
+done
+
+# Build the installer ISO if it doesn't exist yet
+if [ ! -f "${BUILDDIR}/installer-0.0.0-installer.iso" ]; then
+    build_image "${REPOROOT}/scripts/shared/installer.toml" "installer" 0.0.0 edge-installer "${DEMONAME}" "${root_parent_version}"
+else
+    title "Skipping build of installer"
+fi
+
+# Embed the kickstart into the installer ISO if there's no ISO containing it yet
+if [ ! -f "${BUILDDIR}/${DEMONAME}-installer.$(uname -i).iso" ]; then
+    title "Embedding kickstart"
+    if [ -f "${SSH_PUBLIC_KEY_FILE}" ]; then
+        echo "INFO: Using existing SSH public key ${SSH_PUBLIC_KEY_FILE}"
+    else
+        echo "INFO: Generating new SSH key pair ${SSH_PUBLIC_KEY_FILE%.pub}"
+        ssh-keygen -t ed25519 -C "microshift@edge" -f ${SSH_PUBLIC_KEY_FILE%.pub} -N ""
+    fi
+    if [ -f "${PASSWORD_FILE}" ]; then
+        echo "INFO: Using existing user password file ${PASSWORD_FILE}"
+    else
+        echo "INFO: Generating new user password file ${PASSWORD_FILE}"
+        head -c8 < <(< /dev/urandom tr -dc _A-Z-a-z-0-9) > "${PASSWORD_FILE}"
+    fi
+    cat "${DEMODIR}/kickstart.ks.tmpl" | \
+        OSTREE_REPO_URL=${OSTREE_SERVER_URL}/repo/ \
+        OSTREE_REF=${OSTREE_REF} \
+        TRANSMISSION_URL=${GITOPS_REPO}?ref=\${uuid} \
+        USER_NAME="microshift" \
+        USER_PASS_ENCRYPTED=$(openssl passwd -6 -stdin < "${PASSWORD_FILE}") \
+        USER_AUTHORIZED_KEY=$(cat "${SSH_PUBLIC_KEY_FILE}") \
+        OCP_PULL_SECRET_CONTENTS=$(cat "${OCP_PULL_SECRET_FILE}" | jq -c) \
+        envsubst > "${BUILDDIR}/kickstart.ks"
+    sudo mkksiso kickstart.ks installer-0.0.0-installer.iso "${DEMONAME}-installer.$(uname -i).iso"
+    sudo chown -R "$(whoami)." "${BUILDDIR}"
+else
+    title "Skipping embedding of kickstart"
+fi
+
+title "Cleaning up local ostree container serving"
+sudo podman rm -f ostree-server 2>/dev/null || true
+
+title "Done"
+popd &>/dev/null
