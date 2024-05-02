@@ -10,7 +10,7 @@ Configure local Microshift repo with the following [script](scripts/mirror-repos
 
 For the building process you can use the 2 blueprints provided in the [blueprint](blueprints/) folder:  
 - the [blueprint](blueprints/blueprint_first_step.toml) needs to be pushed and built as the first one and it includes Microshift and other troubleshooting packages  
-- the [blueprint](blueprints/blueprint_second_step.toml) will produce an ISO, usable on **Edge Device**. Make sure to change the `<DISK_DEVICE>` with the disk you are installing to ([VDA](blueprints/blueprint_second_step.toml#L9) in the case of VM).  
+- the [blueprint](blueprints/blueprint_second_step.toml) will produce an ISO, usable on **Edge Device**.   
 
 To perform the first build you can run:
 
@@ -39,6 +39,10 @@ Run the container named edge-container and expose it on port 8080 (make sure the
 Build the final installer image with:  
 
 `sudo composer-cli compose start-ostree <BLUEPRINT_INSTALLER_NAME> edge-installer --ref rhel/${baserelease}/${basearch}/edge --url http://<IMAGE_BUILDER_IP>:<IMAGE_PUBLISH_PORT>/repo/`
+
+    NOTE:
+    If you are using `edge-simplified-installer` you will need to use Ignition tool to inject the user configuration into the images [docs](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/9/html-single/composing_installing_and_managing_rhel_for_edge_images/index#edge-how-to-compose-and-deploy-a-rhel-for-edge-image_introducing-rhel-for-edge-images)
+
 
 Find the ID of the generate image with:  
 

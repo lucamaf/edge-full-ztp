@@ -5,5 +5,3 @@ version = "0.0.1"
 modules = []
 groups = []
 packages = []
-[customizations]
-installation_device = "/dev/<DISK_DEVICE>"
