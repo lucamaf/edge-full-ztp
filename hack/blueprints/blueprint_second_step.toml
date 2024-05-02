@@ -1,7 +1,9 @@
 name = "installer"
 
 description = ""
-version = "0.0.0"
+version = "0.0.1"
 modules = []
 groups = []
 packages = []
+[customizations]
+installation_device = "/dev/<DISK_DEVICE>"

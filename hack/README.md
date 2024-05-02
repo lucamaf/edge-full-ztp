@@ -10,7 +10,7 @@ Configure local Microshift repo with the following [script](scripts/mirror-repos
 
 For the building process you can use the 2 blueprints provided in the [blueprint](blueprints/) folder:  
 - the [blueprint](blueprints/blueprint_first_step.toml) needs to be pushed and built as the first one and it includes Microshift and other troubleshooting packages  
-- the [blueprint](blueprints/blueprint_second_step.toml) will produce an ISO, usable on **Edge Device**.
+- the [blueprint](blueprints/blueprint_second_step.toml) will produce an ISO, usable on **Edge Device**. Make sure to change the `<DISK_DEVICE>` with the disk you are installing to ([VDA](blueprints/blueprint_second_step.toml#L9) in the case of VM).  
 
 To perform the first build you can run:
 
