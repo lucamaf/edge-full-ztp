@@ -4,7 +4,7 @@
 At the moment there is an issue with the composer that prevents the full workflow to work correctly.  
 You can try a scaled down version of it based on RHEL 8.7+.
 
-Start by installing RHEL 8.7+ on the **MS** and run the setup image builder [script](scripts/configure-builder).
+Start by installing RHEL 8.7+ on the **Management System** and run the setup image builder [script](scripts/configure-builder).
 
 Configure local Microshift repo with the following [script](scripts/mirror-repos).  
 
