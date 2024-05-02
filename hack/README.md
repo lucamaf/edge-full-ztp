@@ -38,7 +38,7 @@ Run the container named edge-container and expose it on port 8080 (make sure the
 
 Build the final installer image with:  
 
-`sudo composer-cli compose start-ostree <BLUEPRINT_INSTALLER_NAME> edge-simplified-installer --ref rhel/${baserelease}/${basearch}/edge --url http://<IMAGE_BUILDER_IP>:<IMAGE_PUBLISH_PORT>/repo/`
+`sudo composer-cli compose start-ostree <BLUEPRINT_INSTALLER_NAME> edge-installer --ref rhel/${baserelease}/${basearch}/edge --url http://<IMAGE_BUILDER_IP>:<IMAGE_PUBLISH_PORT>/repo/`
 
 Find the ID of the generate image with:  
 
