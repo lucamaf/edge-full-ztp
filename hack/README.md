@@ -51,3 +51,10 @@ sudo chown $(whoami) <FDO_ISO_IMAGE_ID>-simplified-installer.iso
 ```
 
 At this point you should have an ISO file (downloaded in the Image Builder) that you can use to deploy the **Edge Device**.  
+
+To add your Username and other variables at installation time, run the kickstart [script](kickstarts/embed-ks) for preparing and embedding a kickstart in the ISO you just generated.  
+
+The scripts expects the download ISO to be called `installer-0.0.0-installer.iso` and make sure to change in the script the location of the published repo to your and then run the script like this:  
+` ./embed-ks`
+
+You should now have an ISO enriched with the Kickstart file (following this [structure](kickstarts/kickstart.ks.tmpl)).  
